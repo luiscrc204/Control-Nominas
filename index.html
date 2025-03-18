@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Empleados</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+            display: flex;
+        }
+
+        .sidebar {
+            width: 150px;
+            background: #275f96;
+            color: white;
+            padding: 20px;
+            height: 100vh;
+            position: fixed;
+        }
+
+        .sidebar button {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            background: none;
+            border: none;
+            color: white;
+            text-align: left;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+
+        .sidebar button:hover,
+        .sidebar button.active {
+            background: #20446c;
+        }
+
+        .content {
+            margin-left: 170px;
+            padding: 20px;
+            flex: 1;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .tab-content {
+            display: none;
+            margin-left: 30px;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        th, td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: left;
+        }
+
+        th {
+            background: #7b8b9d;
+            color: white;
+        }
+
+        form {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            max-width: 400px;
+            margin-top: 20px;
+            display: flex;
+            flex-direction: column;
+            margin-left: 30px;
+        }
+
+        label {
+            font-weight: bold;
+            margin-top: 10px;
+        }
+
+        input, select {
+            padding: 8px;
+            margin-top: 5px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        input[type="submit"], .btn-back {
+            background: #28a745;
+            color: white;
+            padding: 10px;
+            border: none;
+            cursor: pointer;
+            border-radius: 4px;
+            margin-top: 15px;
+        }
+
+        .btn-back {
+            background: #dc3545;
+        }
+
+        .btn-add {
+            background: #000000;
+            color: white;
+            padding: 10px;
+            border: none;
+            cursor: pointer;
+            border-radius: 4px;
+            margin-top: 15px;
+        }
+
+        input[type="submit"]:hover,
+        .btn-back:hover {
+            opacity: 0.9;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.4);
+        }
+
+        .modal-content {
+            background-color: #fefefe;
+            margin: 15% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 500px;
+            border-radius: 8px;
+        }
+
+        .modal-form {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .modal-buttons {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .modal-buttons button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .btn-cancel {
+            background-color: #dc3545;
+            color: white;
+        }
+
+        .btn-generate {
+            background-color: #28a745;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <button class="active" onclick="showTab(0)">
+            <i class="fa-solid fa-users"></i> Empleados
+        </button>
+        <button onclick="showTab(1)">
+            <i class="fa-solid fa-clock"></i> Horas Extra
+        </button>
+        <button onclick="showTab(2)">
+            <i class="fa-solid fa-box"></i> Materiales
+        </button>
+    </div>
+
+    <div class="content">
+        <div class="tab-content active">
+            <h1>Control de Nomina</h1>
+            <div class="header">
+                <h2>Lista de Empleados</h2>
+                <button class="btn-add" onclick="showTab(3)">+ Agregar Empleado</button>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Nombre</th>
+                        <th>Antigüedad</th>
+                        <th>Puesto</th>
+                        <th>Material Asignado</th>
+                        <th>Sueldo</th>
+                        <th>Horas Extra</th>
+                        <th>Sueldo x Hr Extra</th>
+                        <th>Total a Pagar</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody id="tabla-empleados">
+                </tbody>
+            </table>
+        </div>
+
+        <div class="tab-content">
+            <h2>Capturar Horas Extra</h2>
+            <form id="form-horas">
+                <label for="empleado_id">ID del Empleado:</label>
+                <input type="text" id="empleado_id" name="empleado_id" required>
+                <label for="horas_extra">Horas Extra:</label>
+                <input type="number" id="horas_extra" name="horas_extra" required>
+                <input type="submit" value="Agregar Horas">
+            </form>
+        </div>
+
+        <div class="tab-content">
+            <h2>Asignar Materiales</h2>
+            <form id="form-materiales">
+                <label for="empleado_id_material">ID del Empleado:</label>
+                <input type="text" id="empleado_id_material" name="empleado_id_material" required>
+                <label for="materiales">Material Asignado:</label>
+                <select id="materiales" name="materiales" required>
+                    <option value="Maus">Mouse</option>
+                    <option value="Laptop">Laptop</option>
+                    <option value="Monitor">Monitor</option>
+                    <option value="Teclado">Teclado</option>
+                </select>
+                <input type="submit" value="Asignar Material">
+            </form>
+        </div>
+
+        <div class="tab-content">
+            <h2>Registrar Nuevo Empleado</h2>
+            <form id="form-empleado">
+                <label for="nombre">Nombre:</label>
+                <input type="text" id="nombre" name="nombre" required>
+                <label for="apellidos">Apellidos:</label>
+                <input type="text" id="apellidos" name="apellidos" required>
+                <label for="fecha_ingreso">Fecha de Ingreso:</label>
+                <input type="date" id="fecha_ingreso" name="fecha_ingreso" required>
+                <label for="puesto">Puesto:</label>
+                <input type="text" id="puesto" name="puesto" required>
+                <label for="sueldo">Sueldo:</label>
+                <input type="number" id="sueldo" name="sueldo" required>
+                <input type="submit" value="Registrar Empleado">
+                <button type="button" class="btn-back fa-solid fa-arrow-right-from-bracket" onclick="showTab(0)"></button>
+            </form>
+        </div>
+    </div>
+
+    <div id="periodoModal" class="modal">
+        <div class="modal-content">
+            <h2>Período de Nómina</h2>
+            <form id="periodoForm" class="modal-form">
+                <div>
+                    <label for="fechaInicio">Fecha de Inicio:</label>
+                    <input type="date" id="fechaInicio" required>
+                </div>
+                <div>
+                    <label for="fechaFin">Fecha de Fin:</label>
+                    <input type="date" id="fechaFin" required>
+                </div>
+                <div class="modal-buttons">
+                    <button type="button" class="btn-cancel" onclick="cerrarModal()">Cancelar</button>
+                    <button type="submit" class="btn-generate">Generar PDF</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, collection, getDocs, addDoc, updateDoc, doc, setDoc, arrayUnion } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyASAV5inrtBWVAoPNKsJw4V5ZqcsEsp384",
+            authDomain: "nominas-c4e89.firebaseapp.com",
+            projectId: "nominas-c4e89",
+            storageBucket: "nominas-c4e89.firebasestorage.app",
+            messagingSenderId: "140153018316",
+            appId: "1:140153018316:web:4d032936e8070d9589af69",
+            measurementId: "G-RR5PRXF484"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        function generarId(nombre, apellidos) {
+            const iniciales = (nombre.charAt(0) + (apellidos.split(" ")[0]?.charAt(0) || "")).toUpperCase();
+            const numeroAleatorio = Math.floor(100 + Math.random() * 900);
+            return iniciales + numeroAleatorio;
+        }
+
+        async function registrarEmpleado(event) {
+            event.preventDefault();
+
+            const nombre = document.getElementById("nombre").value.trim();
+            const apellidos = document.getElementById("apellidos").value.trim();
+            const fechaIngreso = document.getElementById("fecha_ingreso").value;
+            const puesto = document.getElementById("puesto").value.trim();
+            const sueldo = parseFloat(document.getElementById("sueldo").value);
+
+            if (!nombre || !apellidos || !fechaIngreso || !puesto || isNaN(sueldo)) {
+                alert("Por favor, complete todos los campos correctamente.");
+                return;
+            }
+
+            const idEmpleado = generarId(nombre, apellidos);
+
+            try {
+                await setDoc(doc(db, "empleados", idEmpleado), {
+                    nombre,
+                    apellidos,
+                    fecha_ingreso: fechaIngreso,
+                    puesto,
+                    sueldo,
+                    material_asignado: [],
+                    horas_extra: 0
+                });
+
+                alert(`Empleado registrado con éxito! ID: ${idEmpleado}`);
+                document.getElementById("form-empleado").reset();
+                showTab(0);
+                obtenerEmpleados();
+            } catch (error) {
+                console.error("Error al registrar empleado:", error);
+                alert("Hubo un error al registrar el empleado.");
+            }
+        }
+
+        window.showTab = function(index) {
+            let tabs = document.querySelectorAll('.tab-content');
+            let buttons = document.querySelectorAll('.sidebar button');
+            tabs.forEach(tab => tab.classList.remove('active'));
+            buttons.forEach(btn => btn.classList.remove('active'));
+            tabs[index].classList.add('active');
+            buttons[index].classList.add('active');
+        }
+
+        window.generarPdf = function(empleadoData) {
+            const modal = document.getElementById('periodoModal');
+            const form = document.getElementById('periodoForm');
+            const empleado = JSON.parse(empleadoData);
+            
+            modal.style.display = "block";
+            
+            form.onsubmit = function(e) {
+                e.preventDefault();
+                
+                const fechaInicio = document.getElementById('fechaInicio').value;
+                const fechaFin = document.getElementById('fechaFin').value;
+                
+                if (!fechaInicio || !fechaFin) {
+                    alert("Por favor, complete ambas fechas");
+                    return;
+                }
+
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+                
+                doc.setFontSize(20);
+                doc.setTextColor(0, 51, 153);
+                doc.text("Recibo de Nómina", 105, 20, { align: "center" });
+
+                doc.setFontSize(12);
+                doc.setTextColor(0, 0, 0);
+                doc.text(`Período: ${fechaInicio} al ${fechaFin}`, 20, 40);
+
+                doc.text(`ID: ${empleado.id}`, 20, 55);
+                doc.text(`Nombre: ${empleado.nombre} ${empleado.apellidos}`, 20, 65);
+                doc.text(`Puesto: ${empleado.puesto}`, 20, 75);
+                doc.text(`Fecha de Ingreso: ${empleado.fecha_ingreso}`, 20, 85);
+
+                const sueldoBase = empleado.sueldo;
+                const sueldoHoraExtra = sueldoBase / 80;
+                const totalHorasExtra = sueldoHoraExtra * empleado.horas_extra;
+                const totalPagar = sueldoBase + totalHorasExtra;
+
+                doc.text("Desglose de Pago:", 20, 100);
+                doc.text(`Sueldo Base: $${sueldoBase.toFixed(2)}`, 30, 110);
+                doc.text(`Horas Extra: ${empleado.horas_extra}`, 30, 120);
+                doc.text(`Pago por Hora Extra: $${sueldoHoraExtra.toFixed(2)}`, 30, 130);
+                doc.text(`Total Horas Extra: $${totalHorasExtra.toFixed(2)}`, 30, 140);
+
+                doc.setFontSize(14);
+                doc.setFont(undefined, 'bold');
+                doc.text(`Total a Pagar: $${totalPagar.toFixed(2)}`, 20, 160);
+
+                doc.setFontSize(12);
+                doc.setFont(undefined, 'normal');
+                doc.text("_____________________", 40, 200);
+                doc.text("Firma del Empleado", 45, 210);
+                
+                doc.text("_____________________", 140, 200);
+                doc.text("Firma de Autorización", 143, 210);
+
+                doc.setFontSize(10);
+                doc.text("Este documento es un comprobante oficial de pago", 105, 270, { align: "center" });
+
+                doc.save(`nomina_${empleado.nombre}_${fechaInicio}_${fechaFin}.pdf`);
+                
+                cerrarModal();
+            };
+        };
+
+        window.cerrarModal = function() {
+            const modal = document.getElementById('periodoModal');
+            modal.style.display = "none";
+            document.getElementById('periodoForm').reset();
+        };
+
+        window.onclick = function(event) {
+            const modal = document.getElementById('periodoModal');
+            if (event.target == modal) {
+                cerrarModal();
+            }
+        };
+
+        async function obtenerEmpleados() {
+            const empleadosRef = collection(db, "empleados");
+            const empleadosSnapshot = await getDocs(empleadosRef);
+            const empleadosLista = empleadosSnapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+
+            const tbody = document.querySelector("tbody");
+            tbody.innerHTML = "";
+
+            empleadosLista.forEach((empleado) => {
+                let antiguedad = calcularAntiguedad(empleado.fecha_ingreso);
+                let materialAsignado = empleado.material_asignado ? empleado.material_asignado.join(", ") : "N/A";
+                let sueldoExtra = (empleado.sueldo / 80);
+                let totalPagar = empleado.sueldo + (sueldoExtra * empleado.horas_extra);
+
+                let empleadoData = encodeURIComponent(JSON.stringify(empleado));
+
+                let row = `
+                    <tr>
+                        <td>${empleado.id}</td>
+                        <td>${empleado.nombre} ${empleado.apellidos}</td>
+                        <td>${antiguedad}</td>
+                        <td>${empleado.puesto}</td>
+                        <td>${materialAsignado}</td>
+                        <td>${empleado.sueldo}</td>
+                        <td>${empleado.horas_extra}</td>
+                        <td>$${sueldoExtra.toFixed(2)}</td>
+                        <td>$${totalPagar.toFixed(2)}</td>
+                        <td><button class="btn-add" onclick='generarPdf(decodeURIComponent("${empleadoData}"))'>Emitir Pago</button></td>
+                    </tr>
+                `;
+                tbody.innerHTML += row;
+            });
+        }
+
+        function calcularAntiguedad(fechaIngreso) {
+            let fecha = new Date(fechaIngreso);
+            let hoy = new Date();
+            let diferencia = hoy.getFullYear() - fecha.getFullYear();
+            return diferencia + (diferencia === 1 ? " año" : " años");
+        }
+
+        document.getElementById("form-empleado").addEventListener("submit", registrarEmpleado);
+
+        document.getElementById("form-horas").addEventListener("submit", async function(event) {
+            event.preventDefault();
+
+            const empleadoId = document.getElementById("empleado_id").value.trim();
+            const horasExtra = parseInt(document.getElementById("horas_extra").value);
+
+            if (!empleadoId || isNaN(horasExtra)) {
+                alert("Por favor, ingrese los datos correctamente.");
+                return;
+            }
+
+            try {
+                const empleadoRef = doc(db, "empleados", empleadoId);
+                await updateDoc(empleadoRef, {
+                    horas_extra: horasExtra
+                });
+
+                alert("Horas extra agregadas correctamente.");
+                obtenerEmpleados();
+                showTab(0);
+            } catch (error) {
+                console.error("Error al agregar horas extra:", error);
+                alert("Hubo un error al agregar las horas extra.");
+            }
+        });
+
+        document.getElementById("form-materiales").addEventListener("submit", async function(event) {
+            event.preventDefault();
+
+            const empleadoId = document.getElementById("empleado_id_material").value.trim();
+            const material = document.getElementById("materiales").value;
+
+            if (!empleadoId || !material) {
+                alert("Por favor, ingrese los datos correctamente.");
+                return;
+            }
+
+            try {
+                const empleadoRef = doc(db, "empleados", empleadoId);
+                await updateDoc(empleadoRef, {
+                    material_asignado: arrayUnion(material)
+                });
+
+                alert("Material asignado correctamente.");
+                obtenerEmpleados();
+                showTab(0);
+            } catch (error) {
+                console.error("Error al asignar material:", error);
+                alert("Hubo un error al asignar el material.");
+            }
+        });
+
+        document.addEventListener("DOMContentLoaded", obtenerEmpleados);
+    </script>
+</body>
+</html>
